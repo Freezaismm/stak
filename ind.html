@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Nadine's Stack Fixed</title>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700&family=VT323&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-dark: #0a0a12;
+            --card-base: #1e1e2f;
+            --card-border: #00ffff;
+            --accent: #ff00ff;
+            --gold: #ffd700;
+        }
+ 
+        * {
+            box-sizing: border-box;
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
+            touch-action: none;
+        }
+
+        body {
+            margin: 0;
+            background-color: var(--bg-dark);
+            color: white;
+            font-family: 'Orbitron', sans-serif;
+            overflow: hidden;
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background-image: 
+                linear-gradient(rgba(0, 255, 255, 0.05) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(0, 255, 255, 0.05) 1px, transparent 1px);
+            background-size: 30px 30px;
+        }
+
+        .scanlines {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%);
+            background-size: 100% 4px;
+            pointer-events: none;
+            z-index: 999;
+        }
+
+        .screen {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(10, 10, 18, 0.98);
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            opacity: 0; pointer-events: none; transition: opacity 0.5s; z-index: 10;
+        }
+        .screen.active { opacity: 1; pointer-events: all; z-index: 100; }
+
+        .photo-frame {
+            width: 150px; height: 150px;
+            border: 3px solid var(--accent);
+            box-shadow: 0 0 20px var(--accent);
+            border-radius: 12px; overflow: hidden; margin-bottom: 20px;
+            background: #000;
+        }
+        .photo-frame img { width: 100%; height: 100%; object-fit: cover; }
+
+        .btn {
+            background: transparent; border: 2px solid var(--card-border);
+            color: var(--card-border); padding: 12px 30px;
+            font-family: inherit; font-size: 1.2rem; cursor: pointer;
+            box-shadow: 0 0 10px var(--card-border); margin-top: 20px;
+            text-transform: uppercase;
+        }
+        
+        .hud {
+            position: absolute; top: 20px; width: 100%;
+            display: flex; flex-direction: column; align-items: center;
+            gap: 10px; z-index: 1000;
+        }
+
+        .hud-tag {
+            background: rgba(0,0,0,0.7); border: 1px solid var(--accent);
+            padding: 5px 15px; border-radius: 20px; color: var(--accent);
+            font-size: 0.9rem;
+        }
+
+        .btn-shuffle {
+            background: rgba(255, 0, 255, 0.2); border: 1px solid var(--accent);
+            color: white; padding: 6px 20px; border-radius: 5px;
+            font-family: 'Orbitron', sans-serif; font-size: 0.7rem;
+            cursor: pointer; box-shadow: 0 0 10px var(--accent);
+        }
+
+        #game-view { position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: none; }
+        #game-view.active { display: block; }
+
+        #board {
+            position: absolute; top: 55%; left: 50%;
+            width: 340px; height: 400px; 
+            transform: translate(-50%, -50%);
+        }
+
+        .card {
+            position: absolute; width: 50px; height: 66px;
+            background: linear-gradient(135deg, #2a2a40 0%, #151520 100%);
+            border: 1px solid var(--card-border); border-radius: 6px;
+            display: flex; justify-content: center; align-items: center;
+            font-size: 26px; cursor: pointer;
+            box-shadow: 3px 3px 0px #005f5f, 4px 4px 5px rgba(0,0,0,0.5);
+        }
+
+        .card.blocked { filter: brightness(0.35) grayscale(1); border-color: #444; box-shadow: 2px 2px 0px #222; }
+        .card.selected { background: var(--accent); border-color: #fff; box-shadow: 0 0 15px var(--accent); z-index: 999 !important; }
+        .card.matched { transform: scale(0); opacity: 0; transition: 0.3s; }
+
+        .text-area {
+            width: 90%; height: 250px; background: rgba(0,0,0,0.8);
+            border: 1px solid var(--gold); padding: 15px;
+            font-family: 'VT323', monospace; font-size: 1.2rem; color: #ffebcd;
+            overflow-y: auto; text-shadow: 0 0 5px var(--gold);
+        }
+    </style>
+</head>
+<body>
+
+    <div class="scanlines"></div>
+
+    <div id="screen-start" class="screen active">
+        <div class="photo-frame">
+            <img src="https://img.sanishtech.com/u/e08deb81d364b151d12909f7c37e1519.png" alt="Nadine">
+        </div>
+        <h1 style="color:var(--card-border); text-shadow:0 0 10px var(--card-border);">NADINE GAMESS</h1>
+        <button class="btn" onclick="startGame()">PLAY GAME</button>
+    </div>
+
+    <div id="game-view">
+        <div class="hud">
+            <span class="hud-tag" id="status-display">PAIRS LEFT: 0</span>
+            <button class="btn-shuffle" onclick="shuffleBoard()">⚡ SHUFFLE ⚡</button>
+        </div>
+        <div id="board"></div>
+    </div>
+
+    <div id="screen-win" class="screen">
+        <h1 style="color:var(--gold);">LEVEL COMPLETED</h1>
+        <div class="photo-frame" style="border-color:var(--gold);">
+            <img src="https://img.sanishtech.com/u/e08deb81d364b151d12909f7c37e1519.png" alt="End">
+        </div>
+        <div class="text-area" id="final-text"></div>
+        <button class="btn" style="border-color:var(--gold);" onclick="location.reload()">MAIN LAGI</button>
+    </div>
+
+    <script>
+        const message = `haii hai8 haii nadinee sayangku cintakuu\n\nwihh akhirnyaa aku buat game lagi nihh, setelah sekian lamaa ga buat akhirnyaa ada game dan longteks lagii wkwkwk, yaa banyak halangan kemarinn euyyy.. hari seninn ncs main minecraft sampe larut malamm, dan aku sudah izin ke kamu untuk tida buat gamenyaa, teruss selasaa semalemm aku sakit bangett sampe ga kuat bikin gamenyaaa, jadinyaa hari ini alhamdulillah berkesempatan bikin gamenyaa lagii nihh, bener bener aku usahain buat bikinnyaa walaupun gamenya ga maksimal semoga kamu suka yaa..\nwahh lama gaada longteks yaaa, aku kangen bikinnyaa dehh, berartii di mulai hari senin yaaa.. wahh hari seninn yakkk, kamu berhalangan berangkat karenaa suatu haal kann, tapi yaa walaupun di sekolah boring tapi tetep seruu kokk, soalnyaa kamu always di sisi akk, sering ngabarinn, minta kabarr dann kita bisa bermain minecraft seharian walaupun aku di sekolah kamu di rumahhh.. dann setelah aku pulang punn kitaa bisa bermain minecraft sampe larut malammm.. ya begitulah serunya hari seninn\n\n terus move on ke hari selasaa.. wahh ini sii seruu bangettt dehhh, hari dimanaa kamu sayang aku bangett, yaa di hari itu ga espek sii bisa nemenin kamu bikin ktp wkwkwkwkwk, padahal kan niat kitaa mengurus buat urusan sendiri sendiri yakk, tapii malah ak mengurus ktp with uuu hehwheheeee, seruu bangett sii dari nemenin kamuu ke kelurahann teruss pulanggg ke rumahmuu, dann disitu sangat di sambut baik sama mamahmuuu wkwkwkw.. lalu nungguin kamuu buat dandann dannn kitaa berangkat hujan hujan lagii huhuuu, tapii seruu bangett aselii deehh, di jalanann kamu sangat sayang akk, di pelukk, laluu sampe teriak aku sayang ezaa, waaww disituu aku seneng bangett sieee.. teruss pas berteduh bisa cerita flashback bagaimana kita awalnya bisa holding hands, dan masih banyak lagiii.. intinyaa seruu bangett, dann sampailah ke kecamatannn yeeyyy, salah satu wishlistku tercapai lagii dehh.. nemenin kamu buat ktp euyy wkwkwek, cieee besok udaa punya ktp niih yaa.. alhamdulillah deh setelah sekian lamaa akhirnyaa punya ktp jugakk kamuu wkwkwkwkwkw.. \n\n lanjutt di hari rabuuu wihh sangat seruu jugaa siii, kitaa bisaa bersama terus saat di sekolaa, yaa walaupun aku berangkatnya aga telatt, tapii kitaa bisa jajan barengg.. yaa walaupun pas pertama malah jadinya ceritaa sii gajadi jajann, tapii gapoaaa kamu jadi legaa bangey bisa ceritaa ke guruu euyy.. dann setelah itu kita beneran jajan dehh yeyyy, timakasii banyak banyakk yaa eskim dan cirengnyaaa maaff ngrepotin bsngett ihhh.. bdhshsjs laluuu kamu mengantarku pulangg dhshdgshshshsu, sumpaa ini sih ngrepotin bangettt, mana di jalan hujan hujannn hadeehh, teruss kamu udaa di cariin mamah jugaaa yaamounn, manaa di tengah jalan sepatuku ketinggalan lagii huhuuu, merasaa bersalah bangett deh akuu sayanggg.. bxhshshshssha \n\n yasudaa dee segini dulu yaa longteksnyaa wkwkkwwk, sudaa malem jugak ni ak tadi kebangunn.. bobo yang nyenyak ya sayanggg, yaahh walaupun gajadi dc sambil roblok tapi gapapaa dehh, aku juga ngantuk soalnyaa heheheee, yasudaaa selamat beristirahatt yaa sayangku cintakuu, semogaa besokk lancarr ywa harinyaa dan kitaa bisa bersenang senang bersamaa lagiii yeyy.. okeydeeee see uu besokk sayanggg paipaiu papaiiu aku sayang nadine pake bangettt, je t'aimeee biennn sayanggg 💙🩵💙🩵💙🩵💙🩵💙🩵💙🩵💙💙🩵💙🩵`;
+        const icons = ['❤️', '⭐', '💎', '🌙', '🔥', '⚡', '🍀', '🎵'];
+        let tiles = [];
+        let selectedTile = null;
+        let pairsLeft = 0;
+        let audioCtx;
+
+        const layout = [
+            {x:0, y:0, z:0}, {x:1, y:0, z:0}, {x:2, y:0, z:0}, {x:3, y:0, z:0},
+            {x:0, y:1, z:0}, {x:1, y:1, z:0}, {x:2, y:1, z:0}, {x:3, y:1, z:0},
+            {x:0, y:2, z:0}, {x:1, y:2, z:0}, {x:2, y:2, z:0}, {x:3, y:2, z:0},
+            {x:0, y:3, z:0}, {x:1, y:3, z:0}, {x:2, y:3, z:0}, {x:3, y:3, z:0},
+            {x:0.5, y:0.5, z:1}, {x:2.5, y:0.5, z:1}, {x:1.5, y:1.5, z:1}, 
+            {x:0.5, y:2.5, z:1}, {x:2.5, y:2.5, z:1}, {x:1.5, y:0.5, z:2},
+            {x:1.5, y:2.5, z:2}, {x:-0.5, y:1.5, z:0}, {x:3.5, y:1.5, z:0}
+        ];
+
+        function initAudio() { if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)(); }
+
+        function beep(freq, type='sine') {
+            if(!audioCtx) return;
+            const o = audioCtx.createOscillator();
+            const g = audioCtx.createGain();
+            o.frequency.value = freq; o.type = type;
+            g.gain.setValueAtTime(0.1, audioCtx.currentTime);
+            g.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.1);
+            o.connect(g); g.connect(audioCtx.destination);
+            o.start(); o.stop(audioCtx.currentTime + 0.1);
+        }
+
+        function startGame() {
+            initAudio();
+            document.getElementById('screen-start').classList.remove('active');
+            document.getElementById('game-view').classList.add('active');
+            buildBoard();
+        }
+
+        function buildBoard() {
+            const board = document.getElementById('board');
+            board.innerHTML = '';
+            tiles = [];
+            let total = layout.length % 2 === 0 ? layout.length : layout.length - 1;
+            let deck = [];
+            for (let i = 0; i < total / 2; i++) { deck.push(icons[i % icons.length], icons[i % icons.length]); }
+            deck.sort(() => Math.random() - 0.5);
+
+            for(let i=0; i<total; i++) {
+                const pos = layout[i];
+                const el = document.createElement('div');
+                el.className = 'card';
+                el.innerHTML = deck[i];
+                el.style.left = (pos.x * 52 + pos.z * 4) + 'px';
+                el.style.top = (pos.y * 60 + pos.z * 4) + 'px';
+                el.style.zIndex = pos.z;
+                
+                const tileObj = { el, x:pos.x, y:pos.y, z:pos.z, icon:deck[i], removed:false };
+                el.onpointerdown = () => handleTap(tileObj);
+                board.appendChild(el);
+                tiles.push(tileObj);
+            }
+            pairsLeft = total / 2;
+            updateStatus();
+            refreshBoardState();
+        }
+
+        function refreshBoardState() {
+            tiles.forEach(t1 => {
+                if(t1.removed) return;
+                let isBlocked = tiles.some(t2 => !t2.removed && t2.z > t1.z && Math.abs(t1.x - t2.x) + Math.abs(t1.y - t2.y) < 1.5);
+                t1.el.classList.toggle('blocked', isBlocked);
+            });
+        }
+
+        function handleTap(tile) {
+            if (tile.removed || tile.el.classList.contains('blocked')) return;
+            beep(600);
+            if (!selectedTile) {
+                selectedTile = tile;
+                tile.el.classList.add('selected');
+            } else {
+                if (tile === selectedTile) return;
+                if (tile.icon === selectedTile.icon) {
+                    tile.removed = selectedTile.removed = true;
+                    tile.el.classList.add('matched');
+                    selectedTile.el.classList.add('matched');
+                    pairsLeft--;
+                    updateStatus();
+                    selectedTile = null;
+                    setTimeout(() => { 
+                        refreshBoardState(); 
+                        if(pairsLeft === 0) winGame(); 
+                    }, 300);
+                } else {
+                    selectedTile.el.classList.remove('selected');
+                    selectedTile = null;
+                    beep(200);
+                }
+            }
+        }
+
+        window.shuffleBoard = function() {
+            let activeTiles = tiles.filter(t => !t.removed);
+            if (activeTiles.length === 0) return;
+            let iconsLeft = activeTiles.map(t => t.icon).sort(() => Math.random() - 0.5);
+            activeTiles.forEach((t, i) => {
+                t.icon = iconsLeft[i];
+                t.el.innerHTML = iconsLeft[i];
+                t.el.classList.remove('selected');
+            });
+            selectedTile = null;
+            refreshBoardState();
+            const b = document.getElementById('board');
+            b.style.opacity = '0.5';
+            setTimeout(() => b.style.opacity = '1', 100);
+        };
+
+        function updateStatus() { document.getElementById('status-display').innerText = "PAIRS LEFT: " + pairsLeft; }
+
+        function winGame() {
+            document.getElementById('game-view').classList.remove('active');
+            document.getElementById('screen-win').classList.add('active');
+            typeText();
+        }
+
+        function typeText() {
+            const el = document.getElementById('final-text');
+            el.innerHTML = '';
+            let i = 0;
+            function type() { if(i < message.length) { el.innerHTML += message[i] === '\n' ? '<br>' : message[i]; i++; setTimeout(type, 50); } }
+            type();
+        }
+    </script>
+</body>
+</html>
